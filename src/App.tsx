@@ -1,0 +1,470 @@
+import { useState, useEffect } from 'react';
+import { motion } from 'motion/react';
+import { PRODUCTS, COMPATIBLE_MODELS } from './data';
+import { Product, CartItem, Order } from './types';
+import { Header } from './components/Header';
+import { ProductCard } from './components/ProductCard';
+import { ProductModal } from './components/ProductModal';
+import { CartDrawer } from './components/CartDrawer';
+import { OrderSuccessModal } from './components/OrderSuccessModal';
+import { TuningConsultation } from './components/TuningConsultation';
+import { ClientOrders } from './components/ClientOrders';
+import { 
+  Search, 
+  Car, 
+  ShoppingCart, 
+  Compass, 
+  Info,
+  Sparkles
+} from 'lucide-react';
+
+export default function App() {
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [selectedModel, setSelectedModel] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  
+  // Interactive mouse tracking state for high-end gloss parallax backlights
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      setMousePosition({
+        x: (e.clientX / window.innerWidth) - 0.5,
+        y: (e.clientY / window.innerHeight) - 0.5,
+      });
+    };
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, []);
+  
+  // Shopping Cart state
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [isCartOpen, setIsCartOpen] = useState(false);
+
+  // Modals alignment states
+  const [activeProduct, setActiveProduct] = useState<Product | null>(null);
+  const [isConsultationOpen, setIsConsultationOpen] = useState(false);
+  const [isOrdersOpen, setIsOrdersOpen] = useState(false);
+  const [recentSubmittedOrder, setRecentSubmittedOrder] = useState<Order | null>(null);
+
+  // Orders database list state with LocalStorage persistence
+  const [orders, setOrders] = useState<Order[]>([]);
+
+  // Seed default order history on first boot
+  useEffect(() => {
+    const existingOrders = localStorage.getItem('mercedes_parts_orders');
+    if (existingOrders) {
+      setOrders(JSON.parse(existingOrders));
+    } else {
+      const seedOrder: Order = {
+        id: 'seed-order-1',
+        orderNumber: 'DE-107052',
+        createdAt: '2026-06-12 14:30',
+        customerName: 'Marcus Weber (Stuttgart Club)',
+        contactMethod: 'whatsapp',
+        contactValue: '+49 170 123 4567',
+        deliveryMethod: 'shipping',
+        address: 'Germany, Stuttgart, Mercedes Avenue 10',
+        vin: 'WDB2050421FXXXXXX',
+        items: [
+          {
+            productId: 'prod-3',
+            productName: 'AMG Performance Carbon & Alcantara Steering Wheel',
+            productNameRu: 'AMG Performance Carbon & Alcantara Steering Wheel',
+            oemNumber: 'A0004603912',
+            priceEur: 1650,
+            quantity: 1,
+          }
+        ],
+        totalPriceEur: 1800,
+        shippingCostEur: 150,
+        status: 'completed'
+      };
+      const initialList = [seedOrder];
+      localStorage.setItem('mercedes_parts_orders', JSON.stringify(initialList));
+      setOrders(initialList);
+    }
+
+    // Load cart if exists
+    const existingCart = localStorage.getItem('mercedes_parts_cart');
+    if (existingCart) {
+      setCart(JSON.parse(existingCart));
+    }
+  }, []);
+
+  // Update Cart to localStorage on changes
+  const saveCartToStorage = (updatedCart: CartItem[]) => {
+    setCart(updatedCart);
+    localStorage.setItem('mercedes_parts_cart', JSON.stringify(updatedCart));
+  };
+
+  // Add Item to cart logic
+  const handleAddToCart = (product: Product, modelFit?: string) => {
+    const existingIndex = cart.findIndex((item) => item.product.id === product.id);
+    let updatedCart: CartItem[] = [...cart];
+
+    if (existingIndex > -1) {
+      updatedCart[existingIndex].quantity += 1;
+    } else {
+      updatedCart.push({
+        product,
+        quantity: 1,
+        selectedModelFit: modelFit || selectedModel || undefined,
+      });
+    }
+
+    saveCartToStorage(updatedCart);
+    setIsCartOpen(true);
+  };
+
+  // Update Cart Quantity
+  const handleUpdateCartQuantity = (productId: string, quantity: number) => {
+    const updatedCart = cart.map((item) => {
+      if (item.product.id === productId) {
+        return { ...item, quantity: quantity < 1 ? 1 : quantity };
+      }
+      return item;
+    });
+    saveCartToStorage(updatedCart);
+  };
+
+  // Remove item from cart
+  const handleRemoveCartItem = (productId: string) => {
+    const updatedCart = cart.filter((item) => item.product.id !== productId);
+    saveCartToStorage(updatedCart);
+  };
+
+  // Final Checkout processing
+  const handleCheckoutSubmit = (newOrder: Order) => {
+    const updatedOrdersList = [newOrder, ...orders];
+    setOrders(updatedOrdersList);
+    localStorage.setItem('mercedes_parts_orders', JSON.stringify(updatedOrdersList));
+
+    // Reset shopping cart
+    saveCartToStorage([]);
+    setIsCartOpen(false);
+
+    // Trigger invoice success overlay
+    setRecentSubmittedOrder(newOrder);
+  };
+
+  // Admin simulation update status handler
+  const handleUpdateOrderStatus = (orderId: string, status: Order['status']) => {
+    const updated = orders.map((o) => (o.id === orderId ? { ...o, status } : o));
+    setOrders(updated);
+    localStorage.setItem('mercedes_parts_orders', JSON.stringify(updated));
+  };
+
+  // Filters logic
+  const filteredProducts = PRODUCTS.filter((product) => {
+    const matchesCategory = selectedCategory === 'all' || product.category === selectedCategory;
+    const matchesModel = !selectedModel || product.compatibleModels.some(model => 
+      model.toLowerCase().includes(selectedModel.toLowerCase()) || 
+      selectedModel.toLowerCase().includes(model.toLowerCase())
+    );
+    const searchLow = searchQuery.toLowerCase();
+    const matchesSearch = !searchQuery || 
+      product.name.toLowerCase().includes(searchLow) ||
+      product.oemNumber.toLowerCase().includes(searchLow) ||
+      product.description.toLowerCase().includes(searchLow);
+    
+    return matchesCategory && matchesModel && matchesSearch;
+  });
+
+  const CATEGORIES = [
+    { id: 'all', en: 'All Stock' },
+    { id: 'wheels', en: 'Forged Wheels' },
+    { id: 'interiors', en: 'Luxury Interiors' },
+    { id: 'engines', en: 'Motors & Tuning' },
+    { id: 'optics', en: 'Multibeam Optics' },
+    { id: 'bodykits', en: 'AMG Bodykits' },
+    { id: 'electronics', en: 'OEM Electronics' }
+  ];
+
+  return (
+    <div className="min-h-screen bg-zinc-50/60 text-zinc-900 font-sans selection:bg-zinc-950 selection:text-white relative overflow-hidden">
+      
+      {/* 1. Technical Grid Blueprint Overlay (Detailing Workshop Vibe) */}
+      <div 
+        className="absolute inset-0 pointer-events-none opacity-[0.22]"
+        style={{
+          backgroundImage: `
+            radial-gradient(circle at 1px 1px, #d4d4d8 1.2px, transparent 1.2px), 
+            linear-gradient(to right, #e4e4e7 1px, transparent 1px),
+            linear-gradient(to bottom, #e4e4e7 1px, transparent 1px)
+          `,
+          backgroundSize: '24px 24px, 240px 240px, 240px 240px'
+        }}
+      />
+
+      {/* 2. Interactive Parallax Backlight Spotlight (Gloss Lens Glow) */}
+      <motion.div
+        animate={{
+          x: mousePosition.x * 60,
+          y: mousePosition.y * 60
+        }}
+        transition={{ type: 'tween', ease: 'linear', duration: 0.15 }}
+        className="absolute top-[10vh] right-[5vw] w-[600px] h-[600px] bg-zinc-200/40 blur-[130px] rounded-full pointer-events-none mix-blend-multiply"
+      />
+      
+      <motion.div
+        animate={{
+          x: mousePosition.x * -40,
+          y: mousePosition.y * -40
+        }}
+        transition={{ type: 'tween', ease: 'linear', duration: 0.15 }}
+        className="absolute bottom-[20vh] left-[2vw] w-[500px] h-[500px] bg-zinc-300/20 blur-[110px] rounded-full pointer-events-none mix-blend-multiply"
+      />
+
+      {/* 3. Technical Alignment Calipers (Tuning/Measurement ticks on margins) */}
+      <div className="absolute left-4 top-1/4 h-32 w-1.5 border-l border-t border-b border-zinc-400 opacity-60 flex flex-col justify-between text-[8px] font-mono text-zinc-400 pointer-events-none hidden xl:flex">
+        <span>0.00MM</span>
+        <span>1.25MM</span>
+      </div>
+      <div className="absolute right-4 top-1/4 h-32 w-1.5 border-r border-t border-b border-zinc-400 opacity-60 flex flex-col justify-between text-[8px] font-mono text-zinc-400 pointer-events-none hidden xl:flex">
+        <span>EPC_ALIGN</span>
+        <span>SCN_PASS</span>
+      </div>
+
+      {/* Brand Header component */}
+      <Header
+        cartCount={cart.reduce((sum, item) => sum + item.quantity, 0)}
+        onOpenCart={() => setIsCartOpen(true)}
+        onOpenConsultation={() => setIsConsultationOpen(true)}
+        onOpenOrders={() => setIsOrdersOpen(true)}
+      />
+
+      {/* Floating Shopping cart element at screen side */}
+      <div className="fixed bottom-6 right-6 z-40 print:hidden">
+        <button
+          onClick={() => setIsCartOpen(true)}
+          className="relative group p-4 rounded-xl bg-zinc-950 hover:bg-zinc-850 text-white shadow-xl hover:scale-105 active:scale-95 transition-all duration-150 cursor-pointer"
+        >
+          <ShoppingCart className="w-6 h-6 stroke-[2]" />
+          {cart.length > 0 && (
+            <span className="absolute -top-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-white text-zinc-950 border-2 border-zinc-950 font-mono text-xs font-black">
+              {cart.reduce((sum, item) => sum + item.quantity, 0)}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {/* Main Core Catalog Stage */}
+      <main className="max-w-6xl mx-auto px-6 py-12 space-y-12">
+        
+        {/* Quick info-bar explaining the interface concept with big highly readable lines */}
+        <div className="p-7 rounded-2xl bg-white border border-zinc-200 flex items-start gap-5 shadow-[0_22px_48px_rgba(0,0,0,0.04)] relative overflow-hidden transition-all duration-300 hover:shadow-[0_32px_65px_rgba(0,0,0,0.06)] animate-fade-in">
+          {/* High-tech carbon stripe on left edge */}
+          <div className="absolute top-0 bottom-0 left-0 w-2 bg-gradient-to-b from-zinc-950 to-zinc-800" />
+          
+          <Info className="w-6 h-6 text-zinc-950 shrink-0 mt-0.5" />
+          <div className="text-zinc-700 space-y-2 pl-1.5">
+            <span className="font-extrabold text-zinc-950 uppercase tracking-widest text-xs flex items-center gap-2">
+              <span>Integrated Mercedes-Benz Detailing & Retrofit Base</span>
+              <span className="inline-flex h-2 w-2 rounded-full bg-zinc-950"></span>
+            </span>
+            <p className="text-xs md:text-sm leading-relaxed font-bold text-zinc-500">
+              Each premium OEM component originates from official dismantled caches. Choose items, specify your body's custom VIN, and securely dispatch direct requests to our expert retrofitting workshop. Instant hold allocations are active.
+            </p>
+          </div>
+        </div>
+
+        {/* Bento Control Deck for Models & Search Filters - LARGE COMPONENT SIZES */}
+        <div className="p-8 rounded-2xl bg-white border border-zinc-200/90 flex flex-col md:flex-row gap-6 items-stretch md:items-center shadow-[0_35px_80px_rgba(0,0,0,0.04)] relative">
+          
+          {/* Search block */}
+          <div className="relative w-full md:w-5/12 flex flex-col">
+            <span className="text-[10px] font-mono text-zinc-400 uppercase tracking-wider mb-2 font-black">
+              Catalog Component Search:
+            </span>
+            <div className="relative">
+              <Search className="absolute left-4 top-4 w-4.5 h-4.5 text-zinc-450" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search item title, specification or part OEM..."
+                className="w-full pl-12 pr-4 py-3.5 rounded-xl bg-zinc-50 border border-zinc-200 text-xs md:text-sm text-zinc-900 placeholder-zinc-400 focus:border-zinc-950 focus:bg-white outline-none font-sans font-black transition-all"
+              />
+            </div>
+          </div>
+
+          {/* Genuine Mercedes model chassis select drop */}
+          <div className="relative w-full md:w-5/12 flex flex-col">
+            <span className="text-[10px] font-mono text-zinc-400 uppercase tracking-wider mb-2 font-black">
+              Filter by Chassis Match (Mercedes SCN Codes):
+            </span>
+            <div className="relative">
+              <Car className="absolute left-4 top-4 w-4.5 h-4.5 text-zinc-450" />
+              <select
+                value={selectedModel}
+                onChange={(e) => setSelectedModel(e.target.value)}
+                className="w-full pl-12 pr-10 py-3.5 rounded-xl bg-zinc-50 border border-zinc-200 text-xs md:text-sm text-zinc-900 outline-none focus:border-zinc-950 focus:bg-white cursor-pointer font-mono font-black transition-all appearance-none"
+              >
+                <option value="">
+                  Show all parts & diagnostic units
+                </option>
+                {COMPATIBLE_MODELS.map((model) => (
+                  <option key={model} value={model}>
+                    {model} Chassis Fit Enabled
+                  </option>
+                ))}
+              </select>
+              <div className="absolute right-4 top-4.5 pointer-events-none text-zinc-450 text-xs">▼</div>
+            </div>
+          </div>
+
+          {/* Active inventory stock meter box */}
+          <div className="text-[11px] text-zinc-500 font-mono text-center md:text-right hidden md:block md:w-2/12 uppercase font-black tracking-widest pt-5 border-t md:border-t-0 md:pt-0 self-center">
+            <div className="text-[10px] text-zinc-405 mb-0.5">Active Stock</div>
+            <span className="font-mono text-zinc-950 font-black text-lg block leading-none">
+              {filteredProducts.length} <span className="text-xs text-zinc-450 font-bold">UNITS</span>
+            </span>
+          </div>
+
+        </div>
+
+        {/* Sliding category pills - Larger with comfortable touch space */}
+        <div className="flex items-center gap-3 overflow-x-auto pb-4 scrollbar-none">
+          {CATEGORIES.map((cat) => (
+            <button
+              key={cat.id}
+              onClick={() => setSelectedCategory(cat.id)}
+              className={`px-6 py-3.5 rounded-xl text-xs font-mono transition-all duration-200 cursor-pointer font-black uppercase tracking-widest border shrink-0 ${
+                selectedCategory === cat.id
+                  ? 'bg-zinc-950 text-white border-zinc-950 shadow-md scale-[1.01]'
+                  : 'bg-white text-zinc-650 border-zinc-200 hover:bg-zinc-100 hover:text-zinc-950 hover:border-zinc-300'
+              }`}
+            >
+              {cat.en}
+            </button>
+          ))}
+        </div>
+
+        {/* Symmetrical, solid 2-column Catalogue Section layout */}
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm md:text-base font-black text-zinc-950 uppercase tracking-widest flex items-center gap-3">
+              <Sparkles className="w-5 h-5 text-zinc-950" />
+              <span>PRESTIGE ORIGINAL PARTS STOCK</span>
+            </h2>
+            {selectedModel && (
+              <span className="text-[10px] text-white font-mono bg-zinc-950 px-4 py-1.5 rounded-lg border border-zinc-900 uppercase font-black tracking-widest shadow-md">
+                FITMENT ENABLED: {selectedModel}
+              </span>
+            )}
+          </div>
+
+          {filteredProducts.length === 0 ? (
+            <div className="p-20 rounded-2xl bg-white border border-zinc-200 text-center space-y-5 shadow-sm">
+              <div className="w-14 h-14 rounded-full bg-zinc-50 border border-zinc-200 flex items-center justify-center mx-auto text-zinc-500 font-bold text-lg shadow-sm">
+                !
+              </div>
+              <p className="text-zinc-550 text-sm font-mono font-black uppercase tracking-wider">
+                No matching components found for this configuration
+              </p>
+              <button
+                onClick={() => {
+                  setSelectedCategory('all');
+                  setSelectedModel('');
+                  setSearchQuery('');
+                }}
+                className="text-xs text-zinc-950 hover:text-zinc-700 underline font-mono uppercase font-black tracking-widest cursor-pointer"
+              >
+                Reset catalog filters
+              </button>
+            </div>
+          ) : (
+            /* PERFECTLY SYMMETRIC GRAND 2-COLUMN GRID - EXTENSIVE SPACE */
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12 max-w-6xl mx-auto">
+              {filteredProducts.map((product) => (
+                <div key={product.id} className="w-full">
+                  <ProductCard
+                    product={product}
+                    selectedModel={selectedModel}
+                    onViewDetails={(prod) => setActiveProduct(prod)}
+                    onAddToCart={(prod) => handleAddToCart(prod)}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Symmetrical retrofit agency workshop service block */}
+        <div className="p-8 md:p-12 rounded-2xl bg-white border border-zinc-200/90 flex flex-col md:flex-row items-center gap-8 shadow-[0_35px_80px_rgba(0,0,0,0.04)] relative overflow-hidden">
+          <div className="absolute right-0 top-0 bottom-0 w-32 bg-zinc-50 pointer-events-none opacity-[0.25] hidden lg:block" style={{
+            backgroundImage: 'repeating-linear-gradient(45deg, #000 0px, #000 2px, transparent 2px, transparent 10px)'
+          }} />
+
+          <div className="space-y-4 md:w-2/3 relative z-10">
+            <span className="bg-zinc-100 text-zinc-800 font-mono font-black text-[10px] uppercase tracking-widest px-3 py-1.5 rounded-lg inline-block border border-zinc-200/90 shadow-sm">
+              AUTHORIZED RETROFIT WORKSPACE
+            </span>
+            <h3 className="text-xl md:text-3xl font-black text-zinc-950 uppercase tracking-tight leading-tight">
+              SCN Online Coding & Professional Installs
+            </h3>
+            <p className="text-sm text-zinc-550 leading-relaxed font-semibold max-w-xl">
+              We operate proprietary Mercedes testing benches and online diagnostic systems. If you purchase adaptive systems (OLED steering widgets, multibeam headlights), we code them securely, perform wiring, color-match parts and deliver. Contact retrofitting specialists to book.
+            </p>
+          </div>
+
+          <div className="md:w-1/3 w-full shrink-0 relative z-10">
+            <button
+              onClick={() => setIsConsultationOpen(true)}
+              className="w-full py-5 rounded-xl bg-zinc-950 hover:bg-zinc-900 border border-zinc-900 text-white font-mono font-black text-xs uppercase tracking-widest transition-transform active:scale-[0.98] shadow-md flex items-center justify-center gap-2.5 cursor-pointer"
+            >
+              <Compass className="w-5 h-5 stroke-[2.5]" />
+              <span>Book Detailing & Retrofit</span>
+            </button>
+          </div>
+        </div>
+
+      </main>
+
+      {/* Symmetrical footer */}
+      <footer className="bg-white border-t border-zinc-200 py-16 text-center text-xs text-zinc-500 font-mono space-y-3 mt-24">
+        <p>© 2026 Mercedes_Car_Parts. Symmetrical Stuttgart Premium Inventory Cabin.</p>
+        <p className="text-[11px] text-zinc-400">
+          This system serves authentic genuine catalog resources matching specifications.
+        </p>
+      </footer>
+
+      {/* DECK REGISTER MODALS */}
+      <ProductModal
+        isOpen={activeProduct !== null}
+        product={activeProduct}
+        onClose={() => setActiveProduct(null)}
+        onAddToCart={(prod, model) => handleAddToCart(prod, model)}
+      />
+
+      <CartDrawer
+        isOpen={isCartOpen}
+        onClose={() => setIsCartOpen(false)}
+        cart={cart}
+        onUpdateQuantity={handleUpdateCartQuantity}
+        onRemoveItem={handleRemoveCartItem}
+        onCreateOrder={handleCheckoutSubmit}
+      />
+
+      <OrderSuccessModal
+        isOpen={recentSubmittedOrder !== null}
+        order={recentSubmittedOrder}
+        onClose={() => setRecentSubmittedOrder(null)}
+      />
+
+      <TuningConsultation
+        isOpen={isConsultationOpen}
+        onClose={() => setIsConsultationOpen(false)}
+      />
+
+      <ClientOrders
+        isOpen={isOrdersOpen}
+        onClose={() => setIsOrdersOpen(false)}
+        orders={orders}
+        onUpdateOrderStatus={handleUpdateOrderStatus}
+      />
+
+    </div>
+  );
+}

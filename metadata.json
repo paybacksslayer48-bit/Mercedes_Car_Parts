@@ -1,0 +1,8 @@
+{
+  "name": "Remix: Mercedes Parts \u0026 Detailing Catalog",
+  "description": "Premium parts and detailing catalog for Mercedes-Benz. Order original AMG body kits, wheels, luxury steering wheels, engines, and optics with direct email/WhatsApp inquiries.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
