@@ -9,6 +9,7 @@ import { CartDrawer } from './components/CartDrawer';
 import { OrderSuccessModal } from './components/OrderSuccessModal';
 import { TuningConsultation } from './components/TuningConsultation';
 import { ClientOrders } from './components/ClientOrders';
+import { AdminPanel } from './components/AdminPanel';
 import { 
   Search, 
   Car, 
@@ -37,6 +38,9 @@ export default function App() {
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
   
+  // Product inventory state with persistence
+  const [products, setProducts] = useState<Product[]>([]);
+
   // Shopping Cart state
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -45,13 +49,35 @@ export default function App() {
   const [activeProduct, setActiveProduct] = useState<Product | null>(null);
   const [isConsultationOpen, setIsConsultationOpen] = useState(false);
   const [isOrdersOpen, setIsOrdersOpen] = useState(false);
+  const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [recentSubmittedOrder, setRecentSubmittedOrder] = useState<Order | null>(null);
+
+  // Check hashtag router coordinate to open hidden admin deck directly
+  useEffect(() => {
+    const handleCheckHash = () => {
+      if (window.location.hash === '#admin') {
+        setIsAdminOpen(true);
+      }
+    };
+    handleCheckHash();
+    window.addEventListener('hashchange', handleCheckHash);
+    return () => window.removeEventListener('hashchange', handleCheckHash);
+  }, []);
 
   // Orders database list state with LocalStorage persistence
   const [orders, setOrders] = useState<Order[]>([]);
 
   // Seed default order history on first boot
   useEffect(() => {
+    // Load products
+    const cachedProducts = localStorage.getItem('mercedes_catalog_products');
+    if (cachedProducts) {
+      setProducts(JSON.parse(cachedProducts));
+    } else {
+      localStorage.setItem('mercedes_catalog_products', JSON.stringify(PRODUCTS));
+      setProducts(PRODUCTS);
+    }
+
     const existingOrders = localStorage.getItem('mercedes_parts_orders');
     if (existingOrders) {
       setOrders(JSON.parse(existingOrders));
@@ -155,8 +181,34 @@ export default function App() {
     localStorage.setItem('mercedes_parts_orders', JSON.stringify(updated));
   };
 
-  // Filters logic
-  const filteredProducts = PRODUCTS.filter((product) => {
+  const handleAddProduct = (newProduct: Product) => {
+    const updated = [...products, newProduct];
+    setProducts(updated);
+    localStorage.setItem('mercedes_catalog_products', JSON.stringify(updated));
+  };
+
+  const handleUpdateProduct = (updatedProduct: Product) => {
+    const updated = products.map((p) => (p.id === updatedProduct.id ? updatedProduct : p));
+    setProducts(updated);
+    localStorage.setItem('mercedes_catalog_products', JSON.stringify(updated));
+  };
+
+  const handleDeleteProduct = (productId: string) => {
+    const updated = products.filter((p) => p.id !== productId);
+    setProducts(updated);
+    localStorage.setItem('mercedes_catalog_products', JSON.stringify(updated));
+  };
+
+  const handleResetCatalog = () => {
+    const confirmRestore = window.confirm("Are you sure you want to restore the official Mercedes catalog? This will overwrite your custom additions.");
+    if (confirmRestore) {
+      localStorage.setItem('mercedes_catalog_products', JSON.stringify(PRODUCTS));
+      setProducts(PRODUCTS);
+    }
+  };
+
+  // Filters logic - mapped to reactive products state array
+  const filteredProducts = products.filter((product) => {
     const matchesCategory = selectedCategory === 'all' || product.category === selectedCategory;
     const matchesModel = !selectedModel || product.compatibleModels.some(model => 
       model.toLowerCase().includes(selectedModel.toLowerCase()) || 
@@ -232,6 +284,7 @@ export default function App() {
         onOpenCart={() => setIsCartOpen(true)}
         onOpenConsultation={() => setIsConsultationOpen(true)}
         onOpenOrders={() => setIsOrdersOpen(true)}
+        onAdminActivate={() => setIsAdminOpen(true)}
       />
 
       {/* Floating Shopping cart element at screen side */}
@@ -252,23 +305,6 @@ export default function App() {
       {/* Main Core Catalog Stage */}
       <main className="max-w-6xl mx-auto px-6 py-12 space-y-12">
         
-        {/* Quick info-bar explaining the interface concept with big highly readable lines */}
-        <div className="p-7 rounded-2xl bg-white border border-zinc-200 flex items-start gap-5 shadow-[0_22px_48px_rgba(0,0,0,0.04)] relative overflow-hidden transition-all duration-300 hover:shadow-[0_32px_65px_rgba(0,0,0,0.06)] animate-fade-in">
-          {/* High-tech carbon stripe on left edge */}
-          <div className="absolute top-0 bottom-0 left-0 w-2 bg-gradient-to-b from-zinc-950 to-zinc-800" />
-          
-          <Info className="w-6 h-6 text-zinc-950 shrink-0 mt-0.5" />
-          <div className="text-zinc-700 space-y-2 pl-1.5">
-            <span className="font-extrabold text-zinc-950 uppercase tracking-widest text-xs flex items-center gap-2">
-              <span>Integrated Mercedes-Benz Detailing & Retrofit Base</span>
-              <span className="inline-flex h-2 w-2 rounded-full bg-zinc-950"></span>
-            </span>
-            <p className="text-xs md:text-sm leading-relaxed font-bold text-zinc-500">
-              Each premium OEM component originates from official dismantled caches. Choose items, specify your body's custom VIN, and securely dispatch direct requests to our expert retrofitting workshop. Instant hold allocations are active.
-            </p>
-          </div>
-        </div>
-
         {/* Bento Control Deck for Models & Search Filters - LARGE COMPONENT SIZES */}
         <div className="p-8 rounded-2xl bg-white border border-zinc-200/90 flex flex-col md:flex-row gap-6 items-stretch md:items-center shadow-[0_35px_80px_rgba(0,0,0,0.04)] relative">
           
@@ -463,6 +499,18 @@ export default function App() {
         onClose={() => setIsOrdersOpen(false)}
         orders={orders}
         onUpdateOrderStatus={handleUpdateOrderStatus}
+      />
+
+      <AdminPanel
+        isOpen={isAdminOpen}
+        onClose={() => setIsAdminOpen(false)}
+        products={products}
+        orders={orders}
+        onAddProduct={handleAddProduct}
+        onUpdateProduct={handleUpdateProduct}
+        onDeleteProduct={handleDeleteProduct}
+        onUpdateOrderStatus={handleUpdateOrderStatus}
+        onResetCatalog={handleResetCatalog}
       />
 
     </div>

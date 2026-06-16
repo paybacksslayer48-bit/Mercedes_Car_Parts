@@ -7,6 +7,7 @@ interface HeaderProps {
   onOpenCart: () => void;
   onOpenConsultation: () => void;
   onOpenOrders: () => void;
+  onAdminActivate?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -14,6 +15,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenCart,
   onOpenConsultation,
   onOpenOrders,
+  onAdminActivate,
 }) => {
   return (
     <header className="relative w-full bg-white border-b border-zinc-200/90 text-zinc-900 overflow-hidden shadow-[0_15px_40px_rgba(0,0,0,0.03)]">
@@ -41,11 +43,25 @@ export const Header: React.FC<HeaderProps> = ({
             className="relative flex-shrink-0"
           >
             <div className="w-32 h-32 md:w-36 md:h-36 rounded-full bg-zinc-50 p-1.5 flex items-center justify-center shadow-[0_15px_45px_rgba(0,0,0,0.09)] border border-zinc-200/90 ring-4 ring-zinc-50 hover:scale-105 transition-all duration-350">
-              <div className="w-full h-full rounded-full border-2 border-zinc-900 bg-white flex flex-col items-center justify-center overflow-hidden p-3">
-                <svg className="w-20 h-16 text-zinc-950" viewBox="0 0 100 60" fill="currentColor">
-                  <path d="M10 28 C 30 15, 70 15, 90 28 C 95 30, 85 35, 80 34 C 65 30, 35 30, 20 34 Z" fill="none" stroke="currentColor" strokeWidth="3" />
-                  <text x="50%" y="45" textAnchor="middle" fontSize="13" fontWeight="950" fontFamily="sans-serif" letterSpacing="1">MERCEDES</text>
-                  <text x="50%" y="54" textAnchor="middle" fontSize="7.5" fontWeight="950" fontFamily="sans-serif" letterSpacing="1.5" fill="#000000">AMG PARTS</text>
+              <div className="w-full h-full rounded-full border-2 border-zinc-900 bg-white flex flex-col items-center justify-center overflow-hidden p-1.5">
+                <svg className="w-20 h-20 text-zinc-950" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  {/* Outer circle border */}
+                  <circle cx="50" cy="50" r="45" stroke="currentColor" strokeWidth="3.5" fill="none" />
+                  {/* Core hub */}
+                  <circle cx="50" cy="50" r="6" fill="currentColor" />
+                  
+                  {/* Iconic star design facets */}
+                  {/* Up pointer */}
+                  <path d="M50 50 L50 11 L45 47 Z" fill="currentColor" />
+                  <path d="M50 50 L50 11 L55 47 Z" fill="currentColor" opacity="0.6" stroke="currentColor" strokeWidth="0.5" />
+                  
+                  {/* Down-Right pointer */}
+                  <path d="M50 50 L84 70 L51 55 Z" fill="currentColor" />
+                  <path d="M50 50 L84 70 L47 52 Z" fill="currentColor" opacity="0.6" stroke="currentColor" strokeWidth="0.5" />
+                  
+                  {/* Down-Left pointer */}
+                  <path d="M50 50 L16 70 L49 52 Z" fill="currentColor" />
+                  <path d="M50 50 L16 70 L53 55 Z" fill="currentColor" opacity="0.6" stroke="currentColor" strokeWidth="0.5" />
                 </svg>
               </div>
             </div>
@@ -63,7 +79,14 @@ export const Header: React.FC<HeaderProps> = ({
                 <h1 className="text-4xl md:text-5xl font-black tracking-tighter uppercase text-zinc-950 font-sans">
                   MERCEDES<span className="font-light text-zinc-450">_PARTS</span>
                 </h1>
-                <ShieldCheck className="w-7 h-7 text-zinc-950 fill-zinc-950/5 stroke-[2]" title="Authorized OEM Supplier" />
+                <ShieldCheck 
+                  onClick={() => {
+                    console.log("Single click on shield. Double click to trigger admin room.");
+                  }}
+                  onDoubleClick={onAdminActivate}
+                  className="w-7 h-7 text-zinc-950 fill-zinc-950/5 stroke-[2] cursor-pointer hover:scale-110 active:scale-95 transition-transform" 
+                  title="Double-click to open Hidden Admin Panel" 
+                />
               </div>
             </div>
 

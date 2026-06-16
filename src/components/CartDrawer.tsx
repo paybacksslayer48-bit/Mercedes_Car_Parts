@@ -22,35 +22,60 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   onCreateOrder,
 }) => {
   // Checkout form configurations
-  const [customerName, setCustomerName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [vin, setVin] = useState('');
   const [contactMethod, setContactMethod] = useState<'whatsapp' | 'email'>('whatsapp');
-  const [contactValue, setContactValue] = useState('');
-  const [deliveryMethod, setDeliveryMethod] = useState<'pickup' | 'shipping'>('pickup');
-  const [address, setAddress] = useState('');
+  const [emailValue, setEmailValue] = useState('');
+  const [phonePrefix, setPhonePrefix] = useState('+39');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [deliveryMethod, setDeliveryMethod] = useState<'pickup' | 'shipping'>('shipping');
+  const [shippingCountry, setShippingCountry] = useState('Italy');
+  const [shippingCity, setShippingCity] = useState('');
+  const [shippingStreet, setShippingStreet] = useState('');
+  const [shippingZip, setShippingZip] = useState('');
   const [notes, setNotes] = useState('');
 
-  const totalPriceEur = cart.reduce((acc, item) => acc + item.priceEur * item.quantity, 0);
+  const totalPriceEur = cart.reduce((acc, item) => acc + item.product.priceEur * item.quantity, 0);
 
   const handleCheckoutSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!customerName || !vin || !contactValue || (deliveryMethod === 'shipping' && !address)) {
+    if (!firstName || !lastName || !vin) {
+      return;
+    }
+
+    if (contactMethod === 'whatsapp' && !phoneNumber) return;
+    if (contactMethod === 'email' && !emailValue) return;
+
+    if (deliveryMethod === 'shipping' && (!shippingCountry || !shippingCity || !shippingStreet || !shippingZip)) {
       return;
     }
 
     const orderNumber = `DE-${Math.floor(100000 + Math.random() * 900000)}`;
+    const fullCustomerName = `${firstName} ${lastName}`;
+    const fullContactValue = contactMethod === 'whatsapp' ? `${phonePrefix} ${phoneNumber}` : emailValue;
+    const fullAddress = deliveryMethod === 'shipping' 
+      ? `Country: ${shippingCountry}, City: ${shippingCity}, Postal Code: ${shippingZip}, Street: ${shippingStreet}`
+      : 'Depot Self-Pickup (Milan Depot, Italy)';
 
     const newOrder: Order = {
       id: Math.random().toString(36).substr(2, 9),
       orderNumber,
-      customerName,
+      customerName: fullCustomerName,
       vin: vin.toUpperCase(),
       contactMethod,
-      contactValue,
+      contactValue: fullContactValue,
       deliveryMethod,
-      address: deliveryMethod === 'shipping' ? address : undefined,
+      address: fullAddress,
       notes: notes || undefined,
-      items: cart,
+      items: cart.map((item) => ({
+        productId: item.product.id,
+        productName: item.product.name,
+        productNameRu: item.product.nameRu,
+        oemNumber: item.product.oemNumber,
+        priceEur: item.product.priceEur,
+        quantity: item.quantity,
+      })),
       totalPriceEur,
       shippingCostEur: deliveryMethod === 'shipping' ? 150 : 0,
       status: 'pending_verification',
@@ -67,10 +92,14 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
     onCreateOrder(newOrder);
 
     // Clean local form settings
-    setCustomerName('');
+    setFirstName('');
+    setLastName('');
     setVin('');
-    setContactValue('');
-    setAddress('');
+    setPhoneNumber('');
+    setEmailValue('');
+    setShippingCity('');
+    setShippingStreet('');
+    setShippingZip('');
     setNotes('');
   };
 
@@ -138,27 +167,27 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                       </span>
                       {cart.map((item) => (
                         <div
-                          key={item.productId}
+                          key={item.product.id}
                           className="p-3 bg-zinc-50 rounded border border-zinc-200 flex gap-3.5 relative"
                         >
                           <img
-                            src={item.image}
-                            alt={item.productName}
+                            src={item.product.images?.[0] || 'https://images.unsplash.com/photo-1611245801311-5a0248d28e78?auto=format&fit=crop&q=80&w=800'}
+                            alt={item.product.name}
                             className="w-14 h-14 object-cover rounded border border-zinc-200 bg-white shrink-0"
                             referrerPolicy="no-referrer"
                           />
                           <div className="min-w-0 flex-grow space-y-1">
                             <h4 className="text-xs font-bold text-zinc-900 truncate uppercase tracking-tight pr-5">
-                              {item.productName}
+                              {item.product.name}
                             </h4>
                             <p className="text-[10px] text-zinc-400 font-mono">
-                              OEM: {item.oemNumber} {item.modelFit ? `| Fit: ${item.modelFit}` : ''}
+                              OEM: {item.product.oemNumber} {item.selectedModelFit ? `| Fit: ${item.selectedModelFit}` : ''}
                             </p>
                             
                             {/* Quantity controller */}
                             <div className="flex items-center gap-1.5 pt-1">
                               <button
-                                onClick={() => onUpdateQuantity(item.productId, item.quantity - 1)}
+                                onClick={() => onUpdateQuantity(item.product.id, item.quantity - 1)}
                                 className="w-5 h-5 rounded bg-white hover:bg-zinc-250 border border-zinc-250 text-[10px] font-bold flex items-center justify-center transition-all cursor-pointer"
                               >
                                 -
@@ -167,20 +196,20 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                                 {item.quantity}
                               </span>
                               <button
-                                onClick={() => onUpdateQuantity(item.productId, item.quantity + 1)}
+                                onClick={() => onUpdateQuantity(item.product.id, item.quantity + 1)}
                                 className="w-5 h-5 rounded bg-white hover:bg-zinc-250 border border-zinc-250 text-[10px] font-bold flex items-center justify-center transition-all cursor-pointer"
                               >
                                 +
                               </button>
                               
                               <span className="text-xs font-mono font-bold text-zinc-900 ml-auto italic">
-                                €{(item.priceEur * item.quantity).toLocaleString()}
+                                €{(item.product.priceEur * item.quantity).toLocaleString()}
                               </span>
                             </div>
                           </div>
 
                           <button
-                            onClick={() => onRemoveItem(item.productId)}
+                            onClick={() => onRemoveItem(item.product.id)}
                             className="absolute top-2.5 right-2.5 p-1 hover:bg-white text-zinc-400 hover:text-red-500 rounded transition-colors cursor-pointer border border-transparent hover:border-zinc-200"
                             title="Remove OEM Code line"
                           >
@@ -192,41 +221,56 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 
                     {/* Checkout Form Container */}
                     <form onSubmit={handleCheckoutSubmit} className="space-y-4 pt-4 border-t border-zinc-200">
-                      <span className="block text-[9px] font-mono font-black uppercase tracking-widest text-zinc-400">
-                        EPC Verified Deployment Contact
+                      <span className="block text-[9px] font-mono font-black uppercase tracking-widest text-zinc-450">
+                        EPC Verified Deployment Secure Contact
                       </span>
 
-                      {/* Name input */}
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider block font-bold">
-                          Client Signature Name
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          placeholder="E.g., David Miller"
-                          value={customerName}
-                          onChange={(e) => setCustomerName(e.target.value)}
-                          className="w-full p-2.5 rounded bg-zinc-50 border border-zinc-250 text-xs text-zinc-950 placeholder-zinc-400 outline-none focus:border-zinc-900 font-sans"
-                        />
+                      {/* Name input (Split fields) */}
+                      <div className="grid grid-cols-2 gap-3.5">
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider block font-bold">
+                            First Name
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="E.g., David"
+                            value={firstName}
+                            onChange={(e) => setFirstName(e.target.value)}
+                            className="w-full p-2.5 rounded bg-zinc-50 border border-zinc-250 text-xs text-zinc-950 placeholder-zinc-400 outline-none focus:border-zinc-950 focus:bg-white font-sans font-bold"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider block font-bold">
+                            Last Name
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="E.g., Miller"
+                            value={lastName}
+                            onChange={(e) => setLastName(e.target.value)}
+                            className="w-full p-2.5 rounded bg-zinc-50 border border-zinc-250 text-xs text-zinc-950 placeholder-zinc-400 outline-none focus:border-zinc-950 focus:bg-white font-sans font-bold"
+                          />
+                        </div>
                       </div>
 
                       {/* VIN input */}
                       <div className="space-y-1">
                         <div className="flex justify-between items-baseline">
                           <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider block font-bold">
-                            Chassis VIN Number (17-chars)
+                            Chassis VIN (EPC Compatibility check)
                           </label>
-                          <span className="text-[9px] text-zinc-400 font-mono uppercase font-bold">EPC Guaranteed Fit</span>
+                          <span className="text-[9px] text-zinc-455 font-mono uppercase font-black">17 characters</span>
                         </div>
                         <input
                           type="text"
                           required
-                          placeholder="WDB205042..."
+                          placeholder="WDB2050421FXXXXXX"
                           value={vin}
                           onChange={(e) => setVin(e.target.value)}
                           maxLength={17}
-                          className="w-full p-2.5 rounded bg-zinc-50 border border-zinc-250 text-xs text-zinc-950 placeholder-zinc-400 outline-none focus:border-zinc-900 font-mono tracking-widest uppercase"
+                          className="w-full p-2.5 rounded bg-zinc-50 border border-zinc-250 text-xs text-zinc-950 placeholder-zinc-400 outline-none focus:border-zinc-950 focus:bg-white font-mono tracking-widest uppercase font-black"
                         />
                       </div>
 
@@ -235,21 +279,21 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                         <button
                           type="button"
                           onClick={() => setContactMethod('whatsapp')}
-                          className={`p-2.5 rounded border text-xs font-mono font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 cursor-pointer ${
+                          className={`p-2.5 rounded border text-xs font-mono font-black uppercase tracking-wider flex items-center justify-center gap-1.5 cursor-pointer ${
                             contactMethod === 'whatsapp'
-                              ? 'bg-zinc-900 text-white border-zinc-950'
+                              ? 'bg-zinc-950 text-white border-zinc-950'
                               : 'bg-zinc-50 text-zinc-500 border-zinc-200 hover:border-zinc-300'
                           }`}
                         >
                           <Phone className="w-3.5 h-3.5" />
-                          <span>WhatsApp Direct</span>
+                          <span>WhatsApp</span>
                         </button>
                         <button
                           type="button"
                           onClick={() => setContactMethod('email')}
-                          className={`p-2.5 rounded border text-xs font-mono font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 cursor-pointer ${
+                          className={`p-2.5 rounded border text-xs font-mono font-black uppercase tracking-wider flex items-center justify-center gap-1.5 cursor-pointer ${
                             contactMethod === 'email'
-                              ? 'bg-zinc-900 text-white border-zinc-950'
+                              ? 'bg-zinc-950 text-white border-zinc-950'
                               : 'bg-zinc-50 text-zinc-500 border-zinc-200 hover:border-zinc-300'
                           }`}
                         >
@@ -261,16 +305,43 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                       {/* Contact value coordinate */}
                       <div className="space-y-1">
                         <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider block font-bold">
-                          {contactMethod === 'whatsapp' ? 'Phone Number with Country Code' : 'Email Address'}
+                          {contactMethod === 'whatsapp' ? 'Phone Number with European Code' : 'Email Address'}
                         </label>
-                        <input
-                          type={contactMethod === 'whatsapp' ? 'tel' : 'email'}
-                          required
-                          placeholder={contactMethod === 'whatsapp' ? 'E.g., +491701234567' : 'E.g., client@mercedes.com'}
-                          value={contactValue}
-                          onChange={(e) => setContactValue(e.target.value)}
-                          className="w-full p-2.5 rounded bg-zinc-50 border border-zinc-250 text-xs text-zinc-950 placeholder-zinc-400 outline-none focus:border-zinc-900 font-mono"
-                        />
+                        {contactMethod === 'whatsapp' ? (
+                          <div className="flex gap-2">
+                            <select
+                              value={phonePrefix}
+                              onChange={(e) => setPhonePrefix(e.target.value)}
+                              className="p-2.5 rounded bg-zinc-100 border border-zinc-250 text-xs text-zinc-950 font-mono font-bold"
+                            >
+                              <option value="+39">+39 (Italy)</option>
+                              <option value="+49">+49 (Germany)</option>
+                              <option value="+33">+33 (France)</option>
+                              <option value="+41">+41 (Switzerland)</option>
+                              <option value="+43">+43 (Austria)</option>
+                              <option value="+44">+44 (UK)</option>
+                              <option value="+380">+380 (Ukraine)</option>
+                              <option value="+1">+1 (US/Canada)</option>
+                            </select>
+                            <input
+                              type="tel"
+                              required
+                              placeholder="345 6789123"
+                              value={phoneNumber}
+                              onChange={(e) => setPhoneNumber(e.target.value)}
+                              className="flex-grow p-2.5 rounded bg-zinc-50 border border-zinc-250 text-xs text-zinc-950 placeholder-zinc-400 outline-none focus:border-zinc-950 focus:bg-white font-mono font-bold"
+                            />
+                          </div>
+                        ) : (
+                          <input
+                            type="email"
+                            required
+                            placeholder="E.g., customer@mercedes-owner.com"
+                            value={emailValue}
+                            onChange={(e) => setEmailValue(e.target.value)}
+                            className="w-full p-2.5 rounded bg-zinc-50 border border-zinc-250 text-xs text-zinc-950 placeholder-zinc-400 outline-none focus:border-zinc-950 focus:bg-white font-mono font-bold"
+                          />
+                        )}
                       </div>
 
                       {/* Logistics selection */}
@@ -282,9 +353,9 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                           <button
                             type="button"
                             onClick={() => setDeliveryMethod('pickup')}
-                            className={`p-2 rounded border text-xs font-mono font-bold uppercase tracking-wide flex items-center justify-center gap-1.5 cursor-pointer ${
+                            className={`p-2 rounded border text-xs font-mono font-black uppercase tracking-wide flex items-center justify-center gap-1.5 cursor-pointer ${
                               deliveryMethod === 'pickup'
-                                ? 'bg-zinc-900 text-white border-zinc-950'
+                                ? 'bg-zinc-950 text-white border-zinc-950'
                                 : 'bg-zinc-50 text-zinc-500 border-zinc-200 hover:border-zinc-300'
                             }`}
                           >
@@ -294,9 +365,9 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                           <button
                             type="button"
                             onClick={() => setDeliveryMethod('shipping')}
-                            className={`p-2 rounded border text-xs font-mono font-bold uppercase tracking-wide flex items-center justify-center gap-1.5 cursor-pointer ${
+                            className={`p-2 rounded border text-xs font-mono font-black uppercase tracking-wide flex items-center justify-center gap-1.5 cursor-pointer ${
                               deliveryMethod === 'shipping'
-                                ? 'bg-zinc-900 text-white border-zinc-950'
+                                ? 'bg-zinc-950 text-white border-zinc-950'
                                 : 'bg-zinc-50 text-zinc-500 border-zinc-200 hover:border-zinc-300'
                             }`}
                           >
@@ -306,34 +377,75 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                         </div>
                       </div>
 
-                      {/* Shipping address info */}
+                      {/* Shipping address structure with absolute accuracy */}
                       {deliveryMethod === 'shipping' && (
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider block font-bold">
-                            DHL Full Delivery Address
-                          </label>
-                          <textarea
-                            required
-                            rows={2}
-                            placeholder="Street, Postal Code, City, Country"
-                            value={address}
-                            onChange={(e) => setAddress(e.target.value)}
-                            className="w-full p-2.5 rounded bg-zinc-50 border border-zinc-250 text-xs text-zinc-950 placeholder-zinc-400 outline-none focus:border-zinc-900 font-sans"
-                          />
+                        <div className="p-4 rounded-xl bg-zinc-50/70 border border-zinc-200 space-y-3.5">
+                          <span className="block text-[8px] font-mono text-zinc-400 font-extrabold uppercase tracking-widest border-b border-zinc-200 pb-1.5">
+                            DHL DELIVERY REGISTRATION MAPPING
+                          </span>
+                          
+                          <div className="grid grid-cols-2 gap-2">
+                            <div className="space-y-1">
+                              <label className="text-[9px] font-mono text-zinc-500 uppercase block font-bold">Country</label>
+                              <input
+                                type="text"
+                                required
+                                placeholder="E.g. Italy"
+                                value={shippingCountry}
+                                onChange={(e) => setShippingCountry(e.target.value)}
+                                className="w-full p-2 rounded bg-white border border-zinc-250 text-xs text-zinc-950"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[9px] font-mono text-zinc-500 uppercase block font-bold">ZIP / Postal Code</label>
+                              <input
+                                type="text"
+                                required
+                                placeholder="E.g. 20121"
+                                value={shippingZip}
+                                onChange={(e) => setShippingZip(e.target.value)}
+                                className="w-full p-2 rounded bg-white border border-zinc-250 text-xs text-zinc-950 font-mono"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-mono text-zinc-500 uppercase block font-bold">City / Territory</label>
+                            <input
+                              type="text"
+                              required
+                              placeholder="E.g., Milano"
+                              value={shippingCity}
+                              onChange={(e) => setShippingCity(e.target.value)}
+                              className="w-full p-2 rounded bg-white border border-zinc-250 text-xs text-zinc-950 font-sans"
+                            />
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-mono text-zinc-500 uppercase block font-bold">Street and House Number</label>
+                            <textarea
+                              required
+                              rows={2}
+                              placeholder="E.g., Corso Vittorio Emanuele II, 15 (Piano 3, int 4)"
+                              value={shippingStreet}
+                              onChange={(e) => setShippingStreet(e.target.value)}
+                              className="w-full p-2 rounded bg-white border border-zinc-250 text-xs text-zinc-950 font-sans resize-none"
+                            />
+                          </div>
                         </div>
                       )}
 
                       {/* Optional Notes */}
                       <div className="space-y-1">
                         <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider block font-bold">
-                          Optional Custom Notes (SCN updates, etc.)
+                          Optional Custom Notes (SCN updates, carbon finish matching, etc.)
                         </label>
                         <textarea
                           rows={2}
                           placeholder="Special retrofitting instructions..."
                           value={notes}
                           onChange={(e) => setNotes(e.target.value)}
-                          className="w-full p-2.5 rounded bg-zinc-50 border border-zinc-250 text-xs text-zinc-950 placeholder-zinc-400 outline-none focus:border-zinc-900 font-sans"
+                          className="w-full p-2.5 rounded bg-zinc-50 border border-zinc-250 text-xs text-zinc-950 placeholder-zinc-400 outline-none focus:border-zinc-950 focus:bg-white font-sans"
                         />
                       </div>
 
@@ -360,8 +472,15 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
 
                   <button
                     onClick={handleCheckoutSubmit}
-                    disabled={!customerName || !vin || !contactValue || (deliveryMethod === 'shipping' && !address)}
-                    className="w-full py-4 rounded bg-zinc-950 hover:bg-zinc-850 disabled:bg-zinc-100 disabled:text-zinc-300 disabled:border-zinc-200 text-white font-mono font-extrabold text-xs uppercase tracking-widest transition-transform active:scale-95 flex items-center justify-center gap-2 border border-transparent shadow-md cursor-pointer"
+                    disabled={
+                      !firstName ||
+                      !lastName ||
+                      !vin ||
+                      (contactMethod === 'whatsapp' && !phoneNumber) ||
+                      (contactMethod === 'email' && !emailValue) ||
+                      (deliveryMethod === 'shipping' && (!shippingCountry || !shippingCity || !shippingStreet || !shippingZip))
+                    }
+                    className="w-full py-4 rounded bg-zinc-950 hover:bg-zinc-850 disabled:bg-zinc-100 disabled:border-zinc-200 disabled:text-zinc-300 text-white font-mono font-extrabold text-xs uppercase tracking-widest transition-transform active:scale-95 flex items-center justify-center gap-2 border border-transparent shadow-md cursor-pointer"
                   >
                     <span>Complete Specification Order</span>
                     <ArrowRight className="w-4 h-4 text-white" />

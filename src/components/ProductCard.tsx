@@ -161,40 +161,34 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         )}
       </div>
 
-      {/* Description main block - Larger and extremely readable text sizes */}
-      <div className="p-7 flex-grow flex flex-col justify-between space-y-6">
-        <div className="space-y-4">
+      {/* Description main block - Super dry & condensed info */}
+      <div className="p-7 flex-grow flex flex-col justify-between space-y-4">
+        <div className="space-y-3.5">
           {/* OEM code with clean technical aesthetic */}
-          <div className="flex items-center gap-2.5 text-xs font-mono text-zinc-500">
-            <Cpu className="w-4 h-4 text-zinc-500" />
-            <span className="uppercase tracking-wider text-[10px] font-black">
-              PART IDENTIFICATION:
+          <div className="flex items-center gap-2 text-xs font-mono text-zinc-500">
+            <Cpu className="w-3.5 h-3.5 text-zinc-450" />
+            <span className="uppercase text-[9px] font-bold text-zinc-400 tracking-wider">
+              PART OEM:
             </span>
-            <span className="text-zinc-950 font-black select-all tracking-wider font-mono bg-zinc-100 border border-zinc-200 px-2 py-0.5 rounded-md">{product.oemNumber}</span>
+            <span className="text-zinc-950 font-black tracking-wider font-mono bg-zinc-100 border border-zinc-200 px-1.5 py-0.5 rounded text-[10px] select-all">{product.oemNumber}</span>
           </div>
 
           <h3 
             onClick={() => onViewDetails(product)}
-            className="text-xl md:text-2xl font-black tracking-tight uppercase text-zinc-950 hover:text-zinc-700 transition-colors cursor-pointer leading-snug"
+            className="text-lg md:text-xl font-black tracking-tight uppercase text-zinc-950 hover:text-zinc-700 transition-colors cursor-pointer leading-tight"
           >
             {productName}
           </h3>
 
-          <p className="text-sm text-zinc-650 leading-relaxed font-bold">
-            {productDescription}
-          </p>
-
-          {/* Symmetrical specification grid block inside card for great clarity */}
-          {productSpecs && (
-            <div className="pt-3 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-xs font-mono text-zinc-500 border-t border-dashed border-zinc-200/80">
-              {Object.entries(productSpecs).map(([key, val]) => (
-                <div key={key} className="flex justify-between border-b border-zinc-100 pb-1.5">
-                  <span className="text-zinc-400 font-bold uppercase tracking-wider">{key}:</span>
-                  <span className="text-zinc-900 font-black truncate max-w-[170px]">{String(val)}</span>
-                </div>
-              ))}
-            </div>
-          )}
+          {/* Genuine Mercedes model chassis index */}
+          <div className="py-2.5 px-3 bg-zinc-100/70 border border-zinc-200/60 rounded-xl space-y-1">
+            <span className="block text-[8px] font-mono text-zinc-400 font-extrabold uppercase tracking-widest">
+              COMPATIBLE CHASSIS
+            </span>
+            <p className="text-xs font-mono font-black text-zinc-800 leading-normal">
+              {product.compatibleModels.join(' • ')}
+            </p>
+          </div>
         </div>
 
         {/* Fitment Widget Checker inline - Bigger and more readable */}
